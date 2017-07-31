@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Stock Info</title>
+
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.1/css/materialize.min.css">
+    <script src="https://unpkg.com/vue"></script>
+    <!--Import jQuery before materialize.js-->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <!-- Compiled and minified JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.1/js/materialize.min.js"></script>
+</head>
+
+<body class="green lighten-5">
+
+    <nav class="green">
+        <div class="nav-wrapper">
+            <a href="#" class="brand-logo center">Vue Stock Info</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <div class="card-panel">
+                <form class="col s12" action="javascript:performSearch();">
+                    <div class="row">
+                        <div class="input-field col s12">
+                            <i class="material-icons prefix">attach_money</i>
+                            <input id="ticker" type="text" class="validate">
+                            <label for="ticker">Ticker</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card" id="searches">
+                <div class="card-content">
+                    <span class="card-title">Recent Searches</span>
+
+                    <ul class="collapsible" data-collapsible="accordion">
+                        <search v-for="search of searches" :data="search"></search>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer></footer>
+
+    <script>
+        $(document).ready(function () {
+            $('.collapsible').collapsible();
+        });
+        var key = "O0XACXIEK0JHHQNI";
+
+        var url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&outputsize=compact&apikey=" + key +
+            "&symbol=";
+
+        var searchComponent = {
+            props: ['data'],
+            template: `<li>
+                        <div class="collapsible-header">{{data.ticker.toUpperCase()}}</div>
+                        <div class="collapsible-body">
+                            <p>Open: \${{data.open}}</p>
+                            <p>High: \${{data.high}}</p>
+                            <p>Low: \${{data.low}}</p>
+                            <p>Close \${{data.close}}</p>
+                            <p>Volume: {{data.volume}}</p>
+                        </div>
+                    </li>`
+        };
+
+        var app = new Vue({
+            el: "#searches",
+            data: {
+                searches: []
+            },
+            components: {
+                'search': searchComponent
+            }
+        });
+
+        function performSearch() {
+            var ticker = $("#ticker").val();
+            Materialize.toast('Searching...', 1500);
+            $("#ticker").val("");
+            $.get(url + ticker, function (data) {
+                console.log(data);
+                if (data["Error Message"]) {
+                    Materialize.toast('Invalid symbol', 1500);
+                    return;
+                }
+                var now = new Date();
+
+                var search = {};
+                var timeSeries = data["Time Series (Daily)"];
+
+                var day = now.getDate();
+                var year = now.getFullYear();
+                var month = now.getMonth() + 1;
+
+                var timeString = getTimeString(year, month, day);
+
+                var latestDay = timeSeries[timeString];
+                while (typeof latestDay == "undefined") {
+                    if (day == 1) {
+                        day = 31;
+                        if (month == 1) {
+                            month = 12;
+                            year--;
+                        } else {
+                            month--;
+                        }
+                    } else {
+                        day--;
+                    }
+                    timeString = getTimeString(year, month, day);
+                    latestDay = timeSeries[timeString];
+                }
+
+                var open = latestDay["1. open"];
+                var high = latestDay["2. high"];
+                var low = latestDay["3. low"];
+                var close = latestDay["4. close"];
+                var volume = latestDay["5. volume"];
+                search.open = open;
+                search.high = high;
+                search.low = low;
+                search.close = close;
+                search.volume = volume;
+                search.ticker = ticker;
+                app.searches.unshift(search);
+                $('.collapsible').collapsible('close', 0);
+                $('.collapsible').collapsible('open', 0);
+            });
+
+        }
+
+        function getTimeString(year, month, day) {
+            var timeString = year + "-";
+
+            if (month < 10) {
+                timeString += "0";
+            }
+            timeString = timeString + month + "-";
+            if (day < 10) {
+                timeString += "0"
+            }
+            timeString = timeString + day;
+            return timeString;
+        }
+    </script>
+
+</body>
+
+</html>
